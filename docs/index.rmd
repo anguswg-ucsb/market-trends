@@ -1,0 +1,99 @@
+---
+title: 'Market trends'
+author: "[Angus Watters](https://anguswg-ucsb.github.io/)"
+output:
+  rmdformats::downcute
+---
+
+
+```{r, message= FALSE, warning = FALSE, echo = FALSE, out.width = "100%"}
+library(tidyquant)
+library(tidyverse)
+library(readxl)
+library(rvest)
+library(plotly)
+```
+
+```{r, message= FALSE, warning = FALSE, echo = FALSE, out.width = "100%"}
+font = list(
+  family = 'Courier',
+  size = 15,
+  color = 'white')
+label = list(
+  bgcolor = '#232F34',
+  bordercolor = 'transparent',
+  font = font)
+# save current system date to a variable
+today = Sys.Date()
+
+# subtract 3 months from the current date
+date = today %m+% months(-3)
+tickers = read_csv('data/tickers.csv') 
+get_symbols = function(ticker) {
+  df = tq_get(ticker, from = date) %>%
+    mutate(symbol = rep(ticker, length(date)))
+  return(df)
+}
+stocks = get_symbols(tickers)
+
+stocks = stocks %>% select(!symbol)
+stocks = stocks %>% rename(symbol = 'tickers')
+nyse <- tq_exchange("NYSE")
+nasdaq <- tq_exchange("NASDAQ")
+stocks = left_join(stocks, nasdaq, by = 'symbol')
+```
+
+
+
+
+```{r, message= FALSE, warning = FALSE, echo = FALSE, out.width = "100%"}
+daily_sector = stocks %>% group_by(symbol) %>% 
+  tq_transmute(select = adjusted, 
+               mutate_fun = periodReturn, 
+               period    = "daily")
+avg_return =daily_sector %>% 
+  group_by(symbol) %>%
+  summarise(avg_return = round(mean(daily.returns), 4),Volatility = sd(daily.returns),
+            cv = Volatility/avg_return) %>% 
+  arrange(desc(avg_return), desc(Volatility))
+gg_avg_rate_return= avg_return %>% head(73) %>%
+  ggplot(aes(reorder(symbol, -avg_return), avg_return, fill = avg_return))+
+  geom_col()+
+  coord_flip()+
+  labs(title = "Securities With Highest Average Returns over Past 3 Month", x = "Security", y = "Average Return")+
+  theme_classic()+
+  theme(legend.position="none")
+
+plotly_bar = ggplotly(gg_avg_rate_return, tooltip = c('x', 'y')) %>%
+  style(hoverlabel = label) %>% 
+  layout(font = font, 
+         yaxis = list(fixedrange = TRUE))
+
+plotly_bar
+
+```
+
+<br>
+<br>
+<br>
+<br>
+
+```{r, message= FALSE, warning = FALSE, echo = FALSE, out.width = "100%"}
+gg_plot = avg_return %>% ggplot(aes(avg_return, Volatility))+
+  geom_text(aes(label = symbol), size = 3)+
+  labs(title = "Average Return vs Volatility Over Last 3 Months", x = "Average Return", subtitle = "Data Source: Yahoo Finance")+
+  theme_minimal()
+
+plotly_avg_returns_plot = ggplotly(gg_plot, tooltip = c('x', 'y')) %>%
+  style(hoverlabel = label) %>% 
+  layout(font = font, 
+         yaxis = list(fixedrange = TRUE))
+
+plotly_avg_returns_plot
+```
+
+
+
+
+
+

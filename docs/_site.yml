@@ -1,0 +1,10 @@
+name: "Angus Watters"
+output_dir: '.'
+navbar:
+  title: "US market trends"
+  left:
+    - text: ""
+      href: index.html
+
+output:
+  rmdformats::downcute
